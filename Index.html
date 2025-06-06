@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Open Image Host</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
+    .gallery {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    .gallery img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📷 Public Image Host</h1>
+  <p>Select an image to upload:</p>
+  <input type="file" id="fileInput" accept="image/*"/>
+  <div class="gallery" id="gallery"></div>
+
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // Replace this config with your own
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBzJEbTlcH_wh6Pyeg5E4_41cT_jb8M4Yk",
+      authDomain: "image-host-75e78.firebaseapp.com",
+      projectId: "image-host-75e78",
+      storageBucket: "image-host-75e78.firebasestorage.app",
+      messagingSenderId: "10649704767",
+      appId: "1:10649704767:web:fed0910f9dfeef86969b8a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const storage = getStorage(app);
+    const db = getFirestore(app);
+
+    const fileInput = document.getElementById('fileInput');
+    const gallery = document.getElementById('gallery');
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const storageRef = ref(storage, 'images/' + Date.now() + '-' + file.name);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      await addDoc(collection(db, 'images'), {
+        url,
+        timestamp: Date.now()
+      });
+
+      fileInput.value = ''; // Clear the input
+    });
+
+    const q = query(collection(db, 'images'), orderBy('timestamp', 'desc'));
+    onSnapshot(q, (snapshot) => {
+      gallery.innerHTML = '';
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const img = document.createElement('img');
+        img.src = data.url;
+        gallery.appendChild(img);
+      });
+    });
+  </script>
+</body>
+</html>
