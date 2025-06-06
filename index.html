@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Open Image Host</title>
+  <title>Public Image Host</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -40,15 +40,16 @@
     <h3>Your Image is Uploaded!</h3>
     <input type="text" id="imageUrl" readonly />
     <button onclick="copyLink()">Copy Link</button>
-    <p>Share it on Discord, Twitter, Reddit—wherever you want.</p>
+    <p>Share it anywhere: Discord, Reddit, etc.</p>
   </div>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase JS SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+    // ✅ Your Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBzJEbTlcH_wh6Pyeg5E4_41cT_jb8M4Yk",
       authDomain: "image-host-75e78.firebaseapp.com",
@@ -71,20 +72,21 @@
       const file = e.target.files[0];
       if (!file) return;
 
-      const filePath = 'images/' + Date.now() + '-' + file.name;
+      const filePath = 'images/' + Date.now() + '-' + encodeURIComponent(file.name);
       const storageRef = ref(storage, filePath);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
 
       await addDoc(collection(db, 'images'), {
         url,
-        timestamp: Date.now()
+        name: file.name,
+        uploaded: serverTimestamp()
       });
 
       imageUrlInput.value = url;
       linkContainer.style.display = 'block';
 
-      // Optional: redirect directly to image
+      // OPTIONAL: Redirect directly to image
       // window.location.href = url;
     });
 
