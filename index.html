@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>r/place Clone</title>
+  <title>r/place Clone with Cooldown</title>
   <style>
     body {
       margin: 0;
@@ -59,11 +59,20 @@
     .color.selected {
       border-color: #ffcc00;
     }
+    #cooldown {
+      margin-top: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #ff5555;
+      height: 24px;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
   <h1>r/place Clone</h1>
   <div id="palette"></div>
+  <div id="cooldown"></div>
   <div id="board"></div>
 
   <script type="module">
@@ -85,9 +94,16 @@
 
     const board = document.getElementById("board");
     const palette = document.getElementById("palette");
+    const cooldownDisplay = document.getElementById("cooldown");
 
     const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ffffff", "#000000", "#ffa500", "#808080"];
     let selectedColor = colors[0];
+
+    // Cooldown variables
+    const COOLDOWN_SECONDS = 10;
+    let canPlace = true;
+    let cooldownTimer = null;
+    let cooldownRemaining = 0;
 
     // Build color palette UI
     colors.forEach(color => {
@@ -113,12 +129,38 @@
         pixel.dataset.y = y;
         pixel.style.background = "#111";
         pixel.addEventListener("click", async () => {
+          if (!canPlace) return; // Ignore clicks during cooldown
+          canPlace = false;
+          cooldownRemaining = COOLDOWN_SECONDS;
+          updateCooldownDisplay();
+
+          // Place the pixel in Firestore
           const ref = doc(db, "pixels", `${x}_${y}`);
-          await setDoc(ref, { color: selectedColor });
+          try {
+            await setDoc(ref, { color: selectedColor });
+          } catch(e) {
+            console.error("Failed to set pixel color:", e);
+          }
+
+          // Start cooldown countdown
+          cooldownTimer = setInterval(() => {
+            cooldownRemaining--;
+            if (cooldownRemaining <= 0) {
+              clearInterval(cooldownTimer);
+              canPlace = true;
+              cooldownDisplay.textContent = "";
+            } else {
+              updateCooldownDisplay();
+            }
+          }, 1000);
         });
         board.appendChild(pixel);
         pixels[`${x}_${y}`] = pixel;
       }
+    }
+
+    function updateCooldownDisplay() {
+      cooldownDisplay.textContent = `Cooldown: ${cooldownRemaining}s`;
     }
 
     // Load all existing pixel colors once at start
