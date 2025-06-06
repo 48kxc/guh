@@ -29,6 +29,7 @@
       background: #333;
       padding: 5px;
       border: 2px solid #444;
+      user-select: none;
     }
     .pixel {
       width: 10px;
@@ -67,7 +68,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDocs, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBzJEbTlcH_wh6Pyeg5E4_41cT_jb8M4Yk",
@@ -88,6 +89,7 @@
     const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ffffff", "#000000", "#ffa500", "#808080"];
     let selectedColor = colors[0];
 
+    // Build color palette UI
     colors.forEach(color => {
       const c = document.createElement("div");
       c.className = "color";
@@ -101,26 +103,46 @@
       palette.appendChild(c);
     });
 
+    // Create pixels and store references
+    const pixels = {};
     for (let y = 0; y < 100; y++) {
       for (let x = 0; x < 100; x++) {
         const pixel = document.createElement("div");
         pixel.className = "pixel";
         pixel.dataset.x = x;
         pixel.dataset.y = y;
+        pixel.style.background = "#111";
         pixel.addEventListener("click", async () => {
           const ref = doc(db, "pixels", `${x}_${y}`);
           await setDoc(ref, { color: selectedColor });
         });
         board.appendChild(pixel);
-
-        const ref = doc(db, "pixels", `${x}_${y}`);
-        onSnapshot(ref, snap => {
-          if (snap.exists()) {
-            pixel.style.background = snap.data().color;
-          }
-        });
+        pixels[`${x}_${y}`] = pixel;
       }
     }
+
+    // Load all existing pixel colors once at start
+    const allPixels = await getDocs(collection(db, "pixels"));
+    allPixels.forEach(docSnap => {
+      const [x, y] = docSnap.id.split("_");
+      const color = docSnap.data().color;
+      const key = `${x}_${y}`;
+      if (pixels[key]) {
+        pixels[key].style.background = color;
+      }
+    });
+
+    // Listen for updates on any pixel change (batch listener)
+    onSnapshot(collection(db, "pixels"), (snapshot) => {
+      snapshot.docChanges().forEach(change => {
+        const [x, y] = change.doc.id.split("_");
+        const color = change.doc.data().color;
+        const key = `${x}_${y}`;
+        if (pixels[key]) {
+          pixels[key].style.background = color;
+        }
+      });
+    });
   </script>
 </body>
 </html>
