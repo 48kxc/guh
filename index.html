@@ -2,54 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Public Image Host</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: sans-serif;
       text-align: center;
-      padding: 20px;
+      padding: 2rem;
     }
     input[type="file"] {
-      margin-top: 10px;
+      margin-top: 1rem;
     }
-    .link-container {
-      margin-top: 30px;
+    #linkContainer {
+      display: none;
+      margin-top: 2rem;
     }
     input[type="text"] {
       width: 80%;
       padding: 8px;
       font-size: 16px;
-      border: 1px solid #aaa;
-      border-radius: 6px;
     }
     button {
-      margin-left: 10px;
-      padding: 8px 12px;
-      font-size: 16px;
-      cursor: pointer;
+      padding: 8px 16px;
+      margin-left: 0.5rem;
     }
   </style>
 </head>
 <body>
-  <h1>📷 Public Image Host</h1>
-  <p>Select an image to upload:</p>
-  <input type="file" id="fileInput" accept="image/*"/>
+  <h1>📤 Upload an Image</h1>
+  <p>Select an image to upload and get a public link:</p>
+  <input type="file" id="fileInput" accept="image/*" />
 
-  <div class="link-container" id="linkContainer" style="display:none;">
-    <h3>Your Image is Uploaded!</h3>
+  <div id="linkContainer">
+    <h3>Your Shareable Image Link:</h3>
     <input type="text" id="imageUrl" readonly />
-    <button onclick="copyLink()">Copy Link</button>
-    <p>Share it anywhere: Discord, Reddit, etc.</p>
+    <button onclick="copyLink()">Copy</button>
   </div>
 
-  <!-- Firebase JS SDKs -->
+  <!-- Firebase SDKs -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
-    // ✅ Your Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBzJEbTlcH_wh6Pyeg5E4_41cT_jb8M4Yk",
       authDomain: "image-host-75e78.firebaseapp.com",
@@ -62,35 +56,32 @@
 
     const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
-    const db = getFirestore(app);
 
     const fileInput = document.getElementById('fileInput');
-    const linkContainer = document.getElementById('linkContainer');
     const imageUrlInput = document.getElementById('imageUrl');
+    const linkContainer = document.getElementById('linkContainer');
 
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
+    fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
       if (!file) return;
 
-      const filePath = 'images/' + Date.now() + '-' + encodeURIComponent(file.name);
-      const storageRef = ref(storage, filePath);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const fileRef = ref(storage, `uploads/${Date.now()}-${file.name}`);
+      const uploadTask = uploadBytesResumable(fileRef, file);
 
-      await addDoc(collection(db, 'images'), {
-        url,
-        name: file.name,
-        uploaded: serverTimestamp()
-      });
-
-      imageUrlInput.value = url;
-      linkContainer.style.display = 'block';
-
-      // OPTIONAL: Redirect directly to image
-      // window.location.href = url;
+      uploadTask.on('state_changed',
+        null,
+        (error) => {
+          alert('Upload failed: ' + error.message);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          imageUrlInput.value = downloadURL;
+          linkContainer.style.display = 'block';
+        }
+      );
     });
 
-    window.copyLink = function () {
+    window.copyLink = () => {
       imageUrlInput.select();
       document.execCommand('copy');
       alert('Copied to clipboard!');
