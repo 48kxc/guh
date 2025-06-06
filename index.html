@@ -2,90 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Public Image Host</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>r/place Clone</title>
   <style>
     body {
+      margin: 0;
       font-family: sans-serif;
-      text-align: center;
-      padding: 2rem;
+      background: #222;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    input[type="file"] {
-      margin-top: 1rem;
+    #board {
+      display: grid;
+      grid-template-columns: repeat(50, 12px);
+      grid-template-rows: repeat(50, 12px);
+      gap: 1px;
+      margin-top: 20px;
     }
-    #linkContainer {
-      display: none;
-      margin-top: 2rem;
+    .pixel {
+      width: 12px;
+      height: 12px;
+      background: #111;
+      cursor: pointer;
     }
-    input[type="text"] {
-      width: 80%;
-      padding: 8px;
-      font-size: 16px;
+    #palette {
+      margin-top: 10px;
     }
-    button {
-      padding: 8px 16px;
-      margin-left: 0.5rem;
+    .color {
+      width: 20px;
+      height: 20px;
+      display: inline-block;
+      margin: 0 3px;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .color.selected {
+      border-color: white;
     }
   </style>
 </head>
 <body>
-  <h1>📤 Upload an Image</h1>
-  <p>Select an image to upload and get a public link:</p>
-  <input type="file" id="fileInput" accept="image/*" />
+  <h1>r/place Clone</h1>
+  <div id="palette"></div>
+  <div id="board"></div>
 
-  <div id="linkContainer">
-    <h3>Your Shareable Image Link:</h3>
-    <input type="text" id="imageUrl" readonly />
-    <button onclick="copyLink()">Copy</button>
-  </div>
-
-  <!-- Firebase SDKs -->
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBzJEbTlcH_wh6Pyeg5E4_41cT_jb8M4Yk",
       authDomain: "image-host-75e78.firebaseapp.com",
       projectId: "image-host-75e78",
-      storageBucket: "image-host-75e78.appspot.com", // ✅ Fixed domain
+      storageBucket: "image-host-75e78.firebasestorage.app",
       messagingSenderId: "10649704767",
       appId: "1:10649704767:web:fed0910f9dfeef86969b8a",
       measurementId: "G-FDX1ZE90JQ"
     };
 
     const app = initializeApp(firebaseConfig);
-    const storage = getStorage(app);
+    const db = getFirestore(app);
 
-    const fileInput = document.getElementById('fileInput');
-    const imageUrlInput = document.getElementById('imageUrl');
-    const linkContainer = document.getElementById('linkContainer');
+    const board = document.getElementById("board");
+    const palette = document.getElementById("palette");
 
-    fileInput.addEventListener('change', async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
+    const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ffffff", "#000000"];
+    let selectedColor = colors[0];
 
-      const fileRef = ref(storage, `uploads/${Date.now()}-${file.name}`);
-      const uploadTask = uploadBytesResumable(fileRef, file);
-
-      uploadTask.on('state_changed',
-        null,
-        (error) => {
-          alert('Upload failed: ' + error.message);
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          imageUrlInput.value = downloadURL;
-          linkContainer.style.display = 'block';
-        }
-      );
+    colors.forEach(color => {
+      const c = document.createElement("div");
+      c.className = "color";
+      c.style.background = color;
+      if (color === selectedColor) c.classList.add("selected");
+      c.addEventListener("click", () => {
+        document.querySelectorAll(".color").forEach(el => el.classList.remove("selected"));
+        c.classList.add("selected");
+        selectedColor = color;
+      });
+      palette.appendChild(c);
     });
 
-    window.copyLink = () => {
-      imageUrlInput.select();
-      document.execCommand('copy');
-      alert('Copied to clipboard!');
-    };
+    for (let y = 0; y < 50; y++) {
+      for (let x = 0; x < 50; x++) {
+        const pixel = document.createElement("div");
+        pixel.className = "pixel";
+        pixel.dataset.x = x;
+        pixel.dataset.y = y;
+        pixel.addEventListener("click", async () => {
+          const ref = doc(db, "pixels", `${x}_${y}`);
+          await setDoc(ref, { color: selectedColor });
+        });
+        board.appendChild(pixel);
+
+        const ref = doc(db, "pixels", `${x}_${y}`);
+        onSnapshot(ref, snap => {
+          if (snap.exists()) {
+            pixel.style.background = snap.data().color;
+          }
+        });
+      }
+    }
   </script>
 </body>
 </html>
