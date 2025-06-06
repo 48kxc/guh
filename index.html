@@ -13,18 +13,21 @@
     input[type="file"] {
       margin-top: 10px;
     }
-    .gallery {
+    .link-container {
       margin-top: 30px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
     }
-    .gallery img {
-      width: 100%;
-      max-height: 200px;
-      object-fit: cover;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+    input[type="text"] {
+      width: 80%;
+      padding: 8px;
+      font-size: 16px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+    }
+    button {
+      margin-left: 10px;
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -32,22 +35,28 @@
   <h1>📷 Public Image Host</h1>
   <p>Select an image to upload:</p>
   <input type="file" id="fileInput" accept="image/*"/>
-  <div class="gallery" id="gallery"></div>
+
+  <div class="link-container" id="linkContainer" style="display:none;">
+    <h3>Your Image is Uploaded!</h3>
+    <input type="text" id="imageUrl" readonly />
+    <button onclick="copyLink()">Copy Link</button>
+    <p>Share it on Discord, Twitter, Reddit—wherever you want.</p>
+  </div>
 
   <!-- Firebase SDKs -->
   <script type="module">
-    // Replace this config with your own
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBzJEbTlcH_wh6Pyeg5E4_41cT_jb8M4Yk",
       authDomain: "image-host-75e78.firebaseapp.com",
       projectId: "image-host-75e78",
-      storageBucket: "image-host-75e78.firebasestorage.app",
+      storageBucket: "image-host-75e78.appspot.com",
       messagingSenderId: "10649704767",
-      appId: "1:10649704767:web:fed0910f9dfeef86969b8a"
+      appId: "1:10649704767:web:fed0910f9dfeef86969b8a",
+      measurementId: "G-FDX1ZE90JQ"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -55,13 +64,15 @@
     const db = getFirestore(app);
 
     const fileInput = document.getElementById('fileInput');
-    const gallery = document.getElementById('gallery');
+    const linkContainer = document.getElementById('linkContainer');
+    const imageUrlInput = document.getElementById('imageUrl');
 
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      const storageRef = ref(storage, 'images/' + Date.now() + '-' + file.name);
+      const filePath = 'images/' + Date.now() + '-' + file.name;
+      const storageRef = ref(storage, filePath);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
 
@@ -70,19 +81,18 @@
         timestamp: Date.now()
       });
 
-      fileInput.value = ''; // Clear the input
+      imageUrlInput.value = url;
+      linkContainer.style.display = 'block';
+
+      // Optional: redirect directly to image
+      // window.location.href = url;
     });
 
-    const q = query(collection(db, 'images'), orderBy('timestamp', 'desc'));
-    onSnapshot(q, (snapshot) => {
-      gallery.innerHTML = '';
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const img = document.createElement('img');
-        img.src = data.url;
-        gallery.appendChild(img);
-      });
-    });
+    window.copyLink = function () {
+      imageUrlInput.select();
+      document.execCommand('copy');
+      alert('Copied to clipboard!');
+    };
   </script>
 </body>
 </html>
